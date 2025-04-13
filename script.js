@@ -1,6 +1,6 @@
 // تكوين Google Sheets API
 const SPREADSHEET_ID = "11wNQXKFqsb1ZILXNGJBiGJAgJGf0yX9yt73ABjBPnn4"; // قم بتغيير هذا إلى معرف جدول البيانات الخاص بك
-const WHATSAPP_NUMBER = "01226035742"; // رقم الواتساب
+const WHATSAPP_NUMBER = "01065694366"; // رقم الواتساب
 const GOOGLE_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzMnWx4D5-3lxumLOgc4ygsb8b-eV7K7ikkY5ktW8iaiEBP2VDDSuaZ8kxL3X5d5ogg/exec";
 
