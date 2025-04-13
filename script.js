@@ -45,60 +45,34 @@ document
   });
 
 async function saveBooking(name, phone, date, time) {
-  return new Promise((resolve, reject) => {
-    // إنشاء نموذج البيانات
-    const formData = new FormData();
-    formData.append("action", "saveBooking");
-    formData.append("name", name);
-    formData.append("phone", phone);
-    formData.append("date", date);
-    formData.append("time", time);
+  try {
+    // تحضير البيانات كمعلمات URL
+    const params = new URLSearchParams({
+      action: "saveBooking",
+      name: name,
+      phone: phone,
+      date: date,
+      time: time,
+    });
 
-    // إنشاء عنصر النموذج
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = GOOGLE_SCRIPT_URL;
+    // إضافة معلمة عشوائية لتجنب التخزين المؤقت
+    params.append("nocache", new Date().getTime());
 
-    // إضافة البيانات إلى النموذج
-    for (const [key, value] of formData.entries()) {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = key;
-      input.value = value;
-      form.appendChild(input);
-    }
+    // بناء URL كامل مع المعلمات
+    const url = `${GOOGLE_SCRIPT_URL}?${params.toString()}`;
 
-    // إنشاء iframe للاستجابة
-    const iframe = document.createElement("iframe");
-    iframe.name = "submit-iframe";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
+    // إرسال الطلب
+    const response = await fetch(url, {
+      method: "GET",
+      mode: "no-cors",
+    });
 
-    // تعيين النموذج ليستخدم الـ iframe
-    form.target = "submit-iframe";
-    document.body.appendChild(form);
-
-    // معالجة الاستجابة
-    iframe.onload = function () {
-      try {
-        const response = iframe.contentWindow.document.body.textContent;
-        console.log("Response:", response);
-        resolve(response && response.includes("Success"));
-      } catch (error) {
-        console.error("Error reading response:", error);
-        resolve(false);
-      } finally {
-        // تنظيف العناصر
-        setTimeout(() => {
-          document.body.removeChild(form);
-          document.body.removeChild(iframe);
-        }, 1000);
-      }
-    };
-
-    // إرسال النموذج
-    form.submit();
-  });
+    // نظراً لاستخدام mode: 'no-cors'، سنفترض أن العملية نجحت إذا لم يكن هناك خطأ
+    return true;
+  } catch (error) {
+    console.error("Error saving booking:", error);
+    return false;
+  }
 }
 
 function sendWhatsAppMessage(name, phone, date, time) {
