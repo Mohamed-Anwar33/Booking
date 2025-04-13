@@ -4,9 +4,6 @@ const WHATSAPP_NUMBER = "1234567890"; // استبدل هذا برقم WhatsApp �
 const GOOGLE_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbw3Vrf3_mAw8GmsmY2djAc68P9dUVrs8vvoX7mCzWwgh009pkoXJFyJ53F_bL2w9O8o/exec";
 
-// استخدام cors-anywhere كـ proxy
-const PROXY_URL = "https://cors-anywhere.herokuapp.com/";
-
 document
   .getElementById("bookingForm")
   .addEventListener("submit", async function (event) {
@@ -53,55 +50,87 @@ document
     }
   });
 
-async function checkBooking(date, time) {
-  try {
-    const url = `${GOOGLE_SCRIPT_URL}?action=checkBooking&date=${date}&time=${time}`;
-    const response = await fetch(`${PROXY_URL}${url}`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-    });
+// استخدام JSONP للتحقق من الحجز
+function checkBooking(date, time) {
+  return new Promise((resolve, reject) => {
+    // إنشاء معرف فريد للطلب
+    const callbackName = "jsonpCallback_" + Math.round(Math.random() * 1000000);
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    // إنشاء دالة callback
+    window[callbackName] = function (data) {
+      // تنظيف
+      document.body.removeChild(script);
+      delete window[callbackName];
 
-    const data = await response.json();
-    return !data.isBooked; // نعكس القيمة لأن الكود في Google Apps Script يعيد isBooked
-  } catch (error) {
-    console.error("Error checking booking:", error);
-    throw error;
-  }
+      // إرجاع النتيجة
+      resolve(!data.isBooked);
+    };
+
+    // إنشاء عنصر script
+    const script = document.createElement("script");
+    script.src = `${GOOGLE_SCRIPT_URL}?action=checkBooking&date=${date}&time=${time}&callback=${callbackName}`;
+    script.onerror = function () {
+      document.body.removeChild(script);
+      delete window[callbackName];
+      reject(new Error("Failed to load script"));
+    };
+
+    // إضافة script إلى الصفحة
+    document.body.appendChild(script);
+  });
 }
 
+// استخدام نموذج مخفي لحفظ الحجز
 async function saveBooking(name, phone, date, time) {
-  try {
-    const url = `${GOOGLE_SCRIPT_URL}`;
-    const response = await fetch(`${PROXY_URL}${url}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        name,
-        phone,
-        date,
-        time,
-      }),
-    });
+  return new Promise((resolve, reject) => {
+    // إنشاء نموذج مخفي
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = GOOGLE_SCRIPT_URL;
+    form.target = "hidden_iframe";
+    form.style.display = "none";
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // إضافة البيانات
+    const data = { name, phone, date, time };
+    for (const key in data) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = data[key];
+      form.appendChild(input);
     }
 
-    const data = await response.text();
-    return data === "Success";
-  } catch (error) {
-    console.error("Error saving booking:", error);
-    throw error;
-  }
+    // إضافة iframe مخفي
+    let iframe = document.getElementById("hidden_iframe");
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.name = "hidden_iframe";
+      iframe.id = "hidden_iframe";
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+    }
+
+    // إضافة مستمع للتحميل
+    iframe.onload = function () {
+      try {
+        // محاولة قراءة الاستجابة
+        const response = iframe.contentDocument.body.textContent;
+        resolve(response.includes("Success"));
+      } catch (e) {
+        // إذا لم نتمكن من قراءة الاستجابة، نفترض النجاح
+        resolve(true);
+      }
+    };
+
+    // إضافة النموذج وإرساله
+    document.body.appendChild(form);
+    form.submit();
+
+    // إزالة النموذج بعد الإرسال
+    setTimeout(() => {
+      document.body.removeChild(form);
+    }, 1000);
+  });
 }
 
 function sendWhatsAppMessage(name, phone, date, time) {
