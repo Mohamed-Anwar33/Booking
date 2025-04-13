@@ -1,6 +1,6 @@
 // تكوين Google Sheets API
 const SPREADSHEET_ID = "11wNQXKFqsb1ZILXNGJBiGJAgJGf0yX9yt73ABjBPnn4";
-const WHATSAPP_NUMBER = "1234567890"; // استبدل هذا برقم WhatsApp الخاص بك
+const WHATSAPP_NUMBER = "01226035742"; // استبدل هذا برقم WhatsApp الخاص بك
 const GOOGLE_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbw3Vrf3_mAw8GmsmY2djAc68P9dUVrs8vvoX7mCzWwgh009pkoXJFyJ53F_bL2w9O8o/exec";
 
@@ -20,15 +20,7 @@ document
       submitButton.classList.add("loading");
       submitButton.disabled = true;
 
-      // التحقق من توفر الموعد
-      const isAvailable = await checkBooking(date, time);
-
-      if (!isAvailable) {
-        alert("عذراً، هذا الموعد محجوز مسبقاً. الرجاء اختيار موعد آخر.");
-        return;
-      }
-
-      // حفظ الحجز
+      // حفظ الحجز مباشرة
       const success = await saveBooking(name, phone, date, time);
 
       if (success) {
@@ -50,39 +42,19 @@ document
     }
   });
 
-// استخدام JSONP للتحقق من الحجز
-function checkBooking(date, time) {
-  return new Promise((resolve, reject) => {
-    // إنشاء معرف فريد للطلب
-    const callbackName = "jsonpCallback_" + Math.round(Math.random() * 1000000);
-
-    // إنشاء دالة callback
-    window[callbackName] = function (data) {
-      // تنظيف
-      document.body.removeChild(script);
-      delete window[callbackName];
-
-      // إرجاع النتيجة
-      resolve(!data.isBooked);
-    };
-
-    // إنشاء عنصر script
-    const script = document.createElement("script");
-    script.src = `${GOOGLE_SCRIPT_URL}?action=checkBooking&date=${date}&time=${time}&callback=${callbackName}`;
-    script.onerror = function () {
-      document.body.removeChild(script);
-      delete window[callbackName];
-      reject(new Error("Failed to load script"));
-    };
-
-    // إضافة script إلى الصفحة
-    document.body.appendChild(script);
-  });
-}
-
-// استخدام نموذج مخفي لحفظ الحجز
+// استخدام iframe مخفي للتواصل مع Google Apps Script
 async function saveBooking(name, phone, date, time) {
   return new Promise((resolve, reject) => {
+    // إنشاء iframe مخفي
+    let iframe = document.getElementById("hidden_iframe");
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.name = "hidden_iframe";
+      iframe.id = "hidden_iframe";
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+    }
+
     // إنشاء نموذج مخفي
     const form = document.createElement("form");
     form.method = "POST";
@@ -91,23 +63,20 @@ async function saveBooking(name, phone, date, time) {
     form.style.display = "none";
 
     // إضافة البيانات
-    const data = { name, phone, date, time };
+    const data = {
+      action: "saveBooking",
+      name: name,
+      phone: phone,
+      date: date,
+      time: time,
+    };
+
     for (const key in data) {
       const input = document.createElement("input");
       input.type = "hidden";
       input.name = key;
       input.value = data[key];
       form.appendChild(input);
-    }
-
-    // إضافة iframe مخفي
-    let iframe = document.getElementById("hidden_iframe");
-    if (!iframe) {
-      iframe = document.createElement("iframe");
-      iframe.name = "hidden_iframe";
-      iframe.id = "hidden_iframe";
-      iframe.style.display = "none";
-      document.body.appendChild(iframe);
     }
 
     // إضافة مستمع للتحميل
